@@ -4,32 +4,63 @@ using UnityEngine;
 
 public class GameManger : MonoBehaviour
 {
-    private delegate void State();
-   
+    [SerializeField]
+    private Rex rex;
+
+    [SerializeField]
+    private Background background;
+
+    [SerializeField]
+    private Obstacle obstacle;
+
+    [SerializeField]
+    private float cactusDefaultGenTime = 1;
+
+    [SerializeField]
+    private float cactusAdditionalGenTime = 3;
+
+    private Coroutine generateCactusCoroutine;
+
+    private enum State
+    {
+        READY,
+        RUN,
+        END
+    }
+    
     private State state;
-    private RexManager rexManager;
-    private BackgroundManager backgroundManager;
- 
+   
     // Start is called before the first frame update
     void Start()
     {
-        rexManager = FindObjectOfType(typeof(RexManager)) as RexManager;
-        backgroundManager = FindObjectOfType(typeof(BackgroundManager)) as BackgroundManager;
-        state = Ready;
+        Application.targetFrameRate = 60;
+        state = State.READY;
     }
 
     // Update is called once per frame
     void Update()
     {
-        state();
+        switch (state)
+        {
+            case State.READY:
+                Ready();
+                break;
+            case State.RUN:
+                Run();
+                break;
+            case State.END:
+                End();
+                break;
+        }
     }
 
     void Ready()
     {
-        if (Input.anyKey)
+        if (Input.GetKeyUp(KeyCode.Space))
         {
-            Debug.Log("GameState change ReadyState to RunState");
-            state = Run;
+            state = State.RUN;
+            generateCactusCoroutine = StartCoroutine(generateCactus());
+            background.StartMove();
         }
     }
 
@@ -37,17 +68,34 @@ public class GameManger : MonoBehaviour
     {
         if (Input.GetKey(KeyCode.Space))
         {
-            rexManager.InputJump();
+            rex.InputJump();
         }
-        else if (Input.GetKey(KeyCode.RightArrow))
+    }
+
+    void End()
+    {
+        if (Input.GetKeyUp(KeyCode.Space))
         {
-            Debug.Log("start to move background");
-            backgroundManager.StartMove();
+            state = State.READY;
+            rex.Initialize();
+            obstacle.Initialize();
         }
-        else if (Input.GetKey(KeyCode.LeftArrow))
+    }
+
+    private IEnumerator generateCactus()
+    {
+        while(state == State.RUN)
         {
-            Debug.Log("stop to move background");
-            backgroundManager.StopMove();
+            obstacle.GenerateCactus(Random.Range(0, 4));
+            yield return new WaitForSeconds(cactusDefaultGenTime + Random.Range(0.0f, cactusAdditionalGenTime));
         }
+    }
+
+    public void StopGame()
+    {
+        state = State.END;
+        background.StopMove();
+        obstacle.StopCactuses();
+        StopCoroutine(generateCactusCoroutine);
     }
 }
